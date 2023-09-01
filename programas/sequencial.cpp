@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
     // escreve a matriz resultante em arquivo
-    std::ofstream file3("out/M3_sequencial.out");
+    std::ofstream file3("out_sequencial/M3_sequencial.out");
 
     file3 << n1 << " " << m2 << std::endl;
     for(int i = 0; i < n1; i++) {
