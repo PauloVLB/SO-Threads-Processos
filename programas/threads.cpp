@@ -11,16 +11,29 @@ std::vector<std::vector<int>> M2;
 int n1, m1, n2, m2, P;
 int n_threads;
 
+void* mult(void* a){
+    int id = (int)(size_t) a;
+    int begin = id * P;
+    int end = begin + P;
+    if(end > n1 * m2) end = n1 * m2;
 
+    std::ofstream file("out_thread/out_" + std::to_string(id) + ".out");    
 
-void* bla(void* a){
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    std::cout << (int)(size_t)a << "\n";
+    file << n1 << " " << m2 << std::endl;
+
+    for(int i{begin}; i<end; ++i){
+        int row = i / m2;
+        int col = i % m2;
+        int sum = 0;
+
+        for(int j{0}; j<m1; ++j){
+            sum += M1[row][j] * M2[j][col];
+        }
+        file << "c" << row + 1 << col + 1 << ' ' << sum << std::endl;
+    }
+
+    file.close();
     pthread_exit(NULL);
-
-    // escreve a matriz resultante em arquivo
-
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 }
 
 int main(int argc, char** argv) {
@@ -38,7 +51,6 @@ int main(int argc, char** argv) {
     file2 >> n2 >> m2;
     n_threads = ((n1 * m2 - 1) / P) + 1;
     int status;
-
     // declara as matrizes com seus respectivos tamanhos
     M1 = std::vector<std::vector<int>>(n1, std::vector<int>(m1));
     M2 = std::vector<std::vector<int>>(n2, std::vector<int>(m2));
@@ -66,18 +78,16 @@ int main(int argc, char** argv) {
 
     pthread_t threads[n_threads];
     for(int i{0}; i<n_threads; ++i){
-        status = pthread_create(&threads[i], NULL, bla, (void *)(int)i);
+        begins[i] = std::chrono::steady_clock::now();
+        status = pthread_create(&threads[i], NULL, mult, (void *)(size_t)i);
     }
-    std::cout << "wajudawda " << n_threads << std::endl;
 
-    // declara a matriz resultante
-    std::vector<std::vector<int>> M3(n1, std::vector<int>(m2));
+    for(int i{0}; i<n_threads; ++i){
+        status = pthread_join(threads[i], NULL);
+        ends[i] = std::chrono::steady_clock::now();
 
-    // multiplica as matrizes e salva o tempo de execução
-    
-    // ALGO
-
-
-    // escreve a matriz resultante em arquivo
+        std::ofstream file("out_thread/out_" + std::to_string(i) + ".out", std::ios::app);
+        file << std::chrono::duration_cast<std::chrono::milliseconds>(ends[i] - begins[i]).count() << std::endl;
+    }
 
 }
