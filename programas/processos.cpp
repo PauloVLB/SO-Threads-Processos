@@ -1,23 +1,23 @@
 #include <iostream>
-#include <vector>
+#include <map>
 #include <fstream>
 #include <chrono>
 #include <string>
-#include <pthread.h>
+#include <vector>
+#include <sys/wait.h>
 #include <unistd.h>
 
 std::vector<std::vector<int>> M1;
 std::vector<std::vector<int>> M2;
 int n1, m1, n2, m2, P;
-int n_threads;
+int n_processos;
 
-void* mult(void* a){
-    int id = (int)(size_t) a;
+void mult(int id){
     int begin = id * P;
     int end = begin + P;
     if(end > n1 * m2) end = n1 * m2;
 
-    std::ofstream file("out_thread/out_" + std::to_string(id) + ".out");
+    std::ofstream file("out_processos/out_" + std::to_string(id) + ".out");
 
     file << n1 << " " << m2 << std::endl;
 
@@ -33,7 +33,7 @@ void* mult(void* a){
     }
 
     file.close();
-    pthread_exit(NULL);
+
 }
 
 int main(int argc, char** argv) {
@@ -41,6 +41,7 @@ int main(int argc, char** argv) {
     std::string pathM1 = argv[1];
     std::string pathM2 = argv[2];
     P = atoi(argv[3]);
+    std::vector<pid_t> pids(P);
 
     // lê as matrizes de entrada
     std::ifstream file1(pathM1);
@@ -49,8 +50,8 @@ int main(int argc, char** argv) {
     // lê as dimensões das duas matrizes
     file1 >> n1 >> m1;
     file2 >> n2 >> m2;
-    n_threads = ((n1 * m2 - 1) / P) + 1;
-    int status;
+    n_processos = ((n1 * m2 - 1) / P) + 1;
+    pid_t pid_filho;
     // declara as matrizes com seus respectivos tamanhos
     M1 = std::vector<std::vector<int>>(n1, std::vector<int>(m1));
     M2 = std::vector<std::vector<int>>(n2, std::vector<int>(m2));
@@ -73,21 +74,32 @@ int main(int argc, char** argv) {
     file1.close();
     file2.close();
 
-    std::vector<std::chrono::steady_clock::time_point> begins(n_threads);
-    std::vector<std::chrono::steady_clock::time_point> ends(n_threads);
+    std::map<pid_t, int> map_index;
+    std::map<pid_t, std::chrono::steady_clock::time_point> map_begins;
 
-    pthread_t threads[n_threads];
-    for(int i{0}; i<n_threads; ++i){
-        begins[i] = std::chrono::steady_clock::now();
-        status = pthread_create(&threads[i], NULL, mult, (void *)(size_t)i);
+    pthread_t processos[n_processos];
+
+    for(int i{0}; i<n_processos; ++i){
+        auto begin = std::chrono::steady_clock::now();
+        pids[i] = fork();
+        
+        if(pids[i] == 0){
+            mult(i);
+            exit(0);
+        }
+        else{
+            map_index[pids[i]] = i;
+            map_begins[pids[i]] = begin;
+        }
+
     }
 
-    for(int i{0}; i<n_threads; ++i){
-        status = pthread_join(threads[i], NULL);
-        ends[i] = std::chrono::steady_clock::now();
+    for(int i{0}; i < n_processos; ++i){
+        pid_filho = wait(NULL);
+        auto end = std::chrono::steady_clock::now();
+        std::ofstream file("out_processos/out_" + std::to_string(map_index[pid_filho]) + ".out", std::ios::app);
+        file << std::chrono::duration_cast<std::chrono::milliseconds>(end - map_begins[pid_filho]).count() << std::endl;
 
-        std::ofstream file("out_thread/out_" + std::to_string(i) + ".out", std::ios::app);
-        file << std::chrono::duration_cast<std::chrono::milliseconds>(ends[i] - begins[i]).count() << std::endl;
     }
 
 }
