@@ -18,7 +18,7 @@ while True:
     tempo_threads = 0
     tempo_processos = 0
 
-    for i in range(1):
+    for i in range(10):
         os.system(f'./threads in/M1.in in/M2.in {P}')
         os.system(f'./processos in/M1.in in/M2.in {P}')
 
